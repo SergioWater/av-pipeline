@@ -1,0 +1,26 @@
+# AV Telemetry Pipeline — Python dependencies
+# Install into a virtual env:
+#   python -m venv .venv && source .venv/bin/activate   (Windows: .venv\Scripts\activate)
+#   pip install -r requirements.txt
+
+# --- Stage 1: Telemetry simulator (Kafka producer) ---
+confluent-kafka==2.5.3        # fast, well-maintained Kafka client
+faker==30.1.0                 # realistic fake data (cities, coordinates, ids)
+
+# --- Stage 3: Stream processing ---
+pyspark==3.5.3                # Spark Structured Streaming (needs Java 17 installed separately)
+delta-spark==3.2.1            # Delta Lake table format on top of Spark
+
+# --- Stage 4: Lakehouse / object store access ---
+boto3==1.35.30               # S3 client — works against MinIO and real AWS S3
+s3fs==2024.9.0               # filesystem-style access to S3/MinIO for pandas/queries
+
+# --- Stage 5: Data quality & orchestration ---
+great-expectations==1.0.5     # data integrity assertions
+prefect==3.0.4                # orchestrator (easier to start than Airflow)
+
+# --- Helpers for local exploration / debugging ---
+pandas==2.1.4                 # poke at output data, quick checks
+pyarrow==17.0.0               # parquet/arrow support (Delta reads)
+duckdb==1.1.1                 # query parquet/Delta files locally with plain SQL — great for verifying output
+python-dotenv==1.0.1          # load config from a .env file
