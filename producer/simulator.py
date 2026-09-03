@@ -1,12 +1,17 @@
 import asyncio
 import json
+import os
 import random
 import time
 from datetime import datetime, timezone
 from confluent_kafka import Producer
 
 # 1. Configure the Redpanda Producer
-config = {"bootstrap.servers": "localhost:19092"}
+config = {
+    "bootstrap.servers": os.getenv(
+        "KAFKA_BOOTSTRAP_SERVERS", "localhost:19092"
+    )
+}
 producer = Producer(config)
 TOPIC = "raw-vehicle-telemetry"
 
