@@ -17,11 +17,21 @@ HOW TO RUN (3 terminals, all with `conda activate avpipe`):
     Terminal 3:  open http://localhost:9001 in browser to SEE the files
 """
 
+import os
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, when
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType
 )
+
+KAFKA_BOOTSTRAP_SERVERS = os.getenv(
+    "KAFKA_BOOTSTRAP_SERVERS", "localhost:19092"
+)
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+DELTA_PATH = os.getenv("DELTA_PATH", "s3a://lakehouse/telemetry")
 
 # ---------------------------------------------------------------------
 # 1. START SPARK  -- now with Kafka + Delta + S3A all wired in
@@ -45,9 +55,9 @@ spark = (
         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
     )
     # --- S3A: where MinIO lives + credentials + MinIO quirks ---
-    .config("spark.hadoop.fs.s3a.endpoint", "http://localhost:9000")
-    .config("spark.hadoop.fs.s3a.access.key", "minioadmin")
-    .config("spark.hadoop.fs.s3a.secret.key", "minioadmin")
+    .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
+    .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
+    .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
     .config("spark.hadoop.fs.s3a.path.style.access", "true")   # MinIO needs this
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")  # plain HTTP
     .config(
@@ -81,7 +91,7 @@ schema = StructType([
 raw = (
     spark.readStream
     .format("kafka")
-    .option("kafka.bootstrap.servers", "localhost:19092")
+    .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
     .option("subscribe", "raw-vehicle-telemetry")
     .option("startingOffsets", "earliest")
     .load()
@@ -143,7 +153,7 @@ delta_query = (
     .format("delta")
     .outputMode("append")
     .option("checkpointLocation", "/tmp/checkpoints/delta")
-    .start("s3a://lakehouse/telemetry")
+    .start(DELTA_PATH)
 )
 
 # ---------------------------------------------------------------------
@@ -154,7 +164,7 @@ dlq_query = (
     .selectExpr("CAST(raw_json AS STRING) AS value")
     .writeStream
     .format("kafka")
-    .option("kafka.bootstrap.servers", "localhost:19092")
+    .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
     .option("topic", "dead-letter-queue")
     .option("checkpointLocation", "/tmp/checkpoints/dlq")
     .start()
